@@ -17,16 +17,40 @@ jobs:
           with urllib.request.urlopen("https://api.gold-api.com/price/XAU", timeout=15) as r:
               price = float(json.load(r)["price"])
           print("gold:", price)
+
           def push(t, m):
               req = urllib.request.Request(NTFY, data=m.encode(),
                   headers={"Title": t, "Priority": "high", "Tags": "rotating_light"}, method="POST")
               urllib.request.urlopen(req, timeout=15); print("PUSHED:", t)
+
+          # Map of 4 Oct 2026. 4H lower highs. Value 4135-4195, POC 4177.
+          # Bearish OB 4218-4228. Bullish OB 4110-4122. SSL under 4110.9, BSL over 4227.5.
+          ZONES = [
+              {"grade": "A+", "dir": "SHORT @ BEAR-OB", "lo": 4218, "hi": 4228,
+               "entry": 4223, "sl": 4232, "tp": (4195, 4177, 4149),
+               "note": "4H bearish OB + buy-side liquidity. WITH the 4H trend. Needs sweep of 4227.5 then a 5m rejection close."},
+              {"grade": "A", "dir": "LONG @ SSL", "lo": 4122, "hi": 4128,
+               "entry": 4125.3, "sl": 4116, "tp": (4150, 4162, 4177),
+               "note": "Session low / sell-side liquidity. Needs the sweep THEN a 5m close back above 4125.3."},
+              {"grade": "A+", "dir": "LONG @ BULL-OB", "lo": 4110, "hi": 4122,
+               "entry": 4116, "sl": 4104, "tp": (4135, 4150, 4177),
+               "note": "4H bullish OB, base of the whole recovery. Best long. Sweep + reclaim + 5m BOS above 4149.9, enter the FVG retrace."},
+          ]
+
           if os.environ.get("EVENT") == "workflow_dispatch":
-              push("GitHub gold alarm OK", f"Test worked. Gold {price:.1f}. Cloud alarm live 24/7 (Mac can be off).")
+              push("GitHub gold alarm OK (map of 4 Oct)",
+                   f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
+                   f"Armed: SHORT 4218-4228 [A+], LONG 4122-4128 [A], LONG 4110-4122 [A+].")
           else:
-              for d, lo, hi, label in [("LONG",3959,3967,"3959-3967 demand"),("SHORT",4028,4042,"4028-4042 supply"),("SHORT",4048,4052,"4050 supply")]:
-                  if lo-3 <= price <= hi+3:
-                      push("GOLD zone hit", f"Gold {price:.1f} hit the {d} zone {label} - open Claude to confirm."); break
+              for z in ZONES:
+                  if z["lo"] - 3 <= price <= z["hi"] + 3:
+                      t1, t2, t3 = z["tp"]
+                      rr = abs(t2 - z["entry"]) / abs(z["entry"] - z["sl"])
+                      push(f"[{z['grade']}] GOLD {z['dir']}",
+                           f"ENTRY {z['entry']}\nSL {z['sl']}\nTP1 {t1}\nTP2 {t2}\nTP3 {t3}\n"
+                           f"R:R to TP2 = 1:{rr:.1f}\n\n{z['note']}\n\nPrice now {price:.1f}\n"
+                           f"-> Confirm the sweep, the 5m BOS and the FVG before placing. No confirmation, no trade.")
+                      break
               else:
                   print("no zone near - no alert")
           PY
