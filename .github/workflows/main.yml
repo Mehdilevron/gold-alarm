@@ -12,8 +12,40 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           python3 - <<'PY'
-          import os, json, urllib.request
+          import os, json, time, datetime, urllib.request
           NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
+
+          # --- news filter: high-impact USD releases move gold more than any level ---
+          CAL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+          WARN_MIN, LOCK_PRE, LOCK_POST = 60, 30, 20
+          KEYWORDS = ("CPI","PPI","FOMC","Federal Funds","Non-Farm","Nonfarm","Unemployment",
+                      "Powell","PCE","GDP","Retail Sales","Jobless","ADP","ISM","Payroll","Rate")
+
+          def calendar():
+              try:
+                  req = urllib.request.Request(CAL, headers={"User-Agent": "Mozilla/5.0"})
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      raw = json.load(r)
+              except Exception as ex:
+                  print("calendar error:", ex); return []
+              out = []
+              for e in raw:
+                  t, c, i = e.get("title",""), e.get("country",""), e.get("impact","")
+                  if c != "USD": continue
+                  if not (i == "High" or (i == "Medium" and any(k.lower() in t.lower() for k in KEYWORDS))):
+                      continue
+                  try: ts = datetime.datetime.fromisoformat(e["date"].strip()).timestamp()
+                  except Exception: continue
+                  out.append({"ts": ts, "title": t, "imp": i})
+              return sorted(out, key=lambda x: x["ts"])
+
+          def news_state():
+              now = time.time()
+              for e in calendar():
+                  m = (e["ts"] - now) / 60.0
+                  if -LOCK_POST <= m <= LOCK_PRE: return "lock", e, m
+                  if LOCK_PRE < m <= WARN_MIN:    return "warn", e, m
+              return "clear", None, None
           with urllib.request.urlopen("https://api.gold-api.com/price/XAU", timeout=15) as r:
               price = float(json.load(r)["price"])
           print("gold:", price)
@@ -59,6 +91,20 @@ jobs:
                    f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
                    f"4H bearish. Armed: SHORT 4156-4185 [A+], SHORT 4127-4140 [B], LONG 4066-4088 [A], SSL break watch 4066.5 [A].")
           else:
+              state, ev, mins = news_state()
+              if state == "lock":
+                  when = datetime.datetime.fromtimestamp(ev["ts"]).strftime("%H:%M")
+                  if -1 <= mins <= LOCK_PRE:   # announce once, on the way in
+                      push(f"GOLD LOCKED - {ev['title']}",
+                           f"USD {ev['imp']} impact at {when} server time. Gold {price:.1f}.\n\n"
+                           f"-> Setups suppressed until {LOCK_POST} min after the print. "
+                           f"Spreads widen and stops get hunted here. Wait for the 5m close that follows it.")
+                  print("news lock -", ev["title"]); raise SystemExit(0)
+
+              news_tag = ""
+              if state == "warn":
+                  news_tag = f"\nNEWS: {ev['title']} in {int(mins)}m - half size, or wait it out.\n"
+
               for z in ZONES:
                   if z["lo"] - 3 <= price <= z["hi"] + 3:
                       t1, t2, t3 = z["tp"]
