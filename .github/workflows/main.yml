@@ -23,24 +23,29 @@ jobs:
                   headers={"Title": t, "Priority": "high", "Tags": "rotating_light"}, method="POST")
               urllib.request.urlopen(req, timeout=15); print("PUSHED:", t)
 
-          # Map of 4 Oct 2026. 4H lower highs. Value 4135-4195, POC 4177.
-          # Bearish OB 4218-4228. Bullish OB 4110-4122. SSL under 4110.9, BSL over 4227.5.
+          # Map of 8 Oct 2026. 4H DOWNTREND: lower highs and lower lows, VRVP bias bearish.
+          # POC 4184.3, VAH 4196.4, VAL 4145.3. Impulsive 4H drop 4125.9 -> 4066.5, now 4111.
+          # Bearish OB 4156.5-4184.4. Imbalance 4127-4140. Bullish OB 4066.5-4087.5.
+          # BSL above: 4127, 4140, 4156 equal highs, 4184, 4227.5. SSL below: 4100, 4082, 4066.5, 4030.
           ZONES = [
-              {"grade": "A+", "dir": "SHORT @ BEAR-OB", "lo": 4218, "hi": 4228,
-               "entry": 4223, "sl": 4232, "tp": (4195, 4177, 4149),
-               "note": "4H bearish OB + buy-side liquidity. WITH the 4H trend. Needs sweep of 4227.5 then a 5m rejection close."},
-              {"grade": "A", "dir": "LONG @ SSL", "lo": 4122, "hi": 4128,
-               "entry": 4125.3, "sl": 4116, "tp": (4150, 4162, 4177),
-               "note": "Session low / sell-side liquidity. Needs the sweep THEN a 5m close back above 4125.3."},
-              {"grade": "A+", "dir": "LONG @ BULL-OB", "lo": 4110, "hi": 4122,
-               "entry": 4116, "sl": 4104, "tp": (4135, 4150, 4177),
-               "note": "4H bullish OB, base of the whole recovery. Best long. Sweep + reclaim + 5m BOS above 4149.9, enter the FVG retrace."},
+              {"grade": "A+", "dir": "SHORT @ 4H BEAR-OB", "lo": 4156, "hi": 4185,
+               "entry": 4170, "sl": 4186, "tp": (4140, 4111, 4066),
+               "note": "4H bearish OB 4156.5-4184.4, origin of the drop, sits under POC 4184. WITH the trend. Needs the sweep of the 4156 equal highs THEN a 5m rejection close back inside."},
+              {"grade": "B", "dir": "SHORT @ IMBALANCE", "lo": 4127, "hi": 4140,
+               "entry": 4133.5, "sl": 4142, "tp": (4111, 4100, 4082),
+               "note": "Shallow 4H imbalance left by the drop. Tight stop, lower conviction than 4170."},
+              {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4066, "hi": 4088,
+               "entry": 4077, "sl": 4062, "tp": (4111, 4127, 4156),
+               "note": "4066.5-4087.5, base of the recovery, directly above the swept low. Best long but COUNTER-TREND. Sweep + reclaim + 5m BOS, never chase."},
+              {"grade": "A", "dir": "BREAK WATCH @ SSL", "lo": 4060, "hi": 4068,
+               "entry": 4066.5, "sl": 4082, "tp": (4045, 4030, 4010),
+               "note": "Swing low. A 4H CLOSE below reopens 4030. A failed break and reclaim is the long, not the short. Decide on the close, never the wick."},
           ]
 
           if os.environ.get("EVENT") == "workflow_dispatch":
-              push("GitHub gold alarm OK (map of 4 Oct)",
+              push("GitHub gold alarm OK (map of 8 Oct)",
                    f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
-                   f"Armed: SHORT 4218-4228 [A+], LONG 4122-4128 [A], LONG 4110-4122 [A+].")
+                   f"4H bearish. Armed: SHORT 4156-4185 [A+], SHORT 4127-4140 [B], LONG 4066-4088 [A], SSL break watch 4066.5 [A].")
           else:
               for z in ZONES:
                   if z["lo"] - 3 <= price <= z["hi"] + 3:
