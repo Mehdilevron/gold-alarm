@@ -2,6 +2,7 @@ name: Gold Zone Alarm
 on:
   schedule:
     - cron: '*/5 * * * *'
+    - cron: '0 5 * * 1-5'   # daily gold news agenda
   workflow_dispatch:
 jobs:
   check-gold:
@@ -10,6 +11,7 @@ jobs:
       - name: Check gold price and alert phone
         env:
           EVENT: ${{ github.event_name }}
+          CRON:  ${{ github.event.schedule }}
         run: |
           python3 - <<'PY'
           import os, json, time, datetime, urllib.request
@@ -19,7 +21,25 @@ jobs:
           CAL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
           WARN_MIN, LOCK_PRE, LOCK_POST = 60, 30, 20
           KEYWORDS = ("CPI","PPI","FOMC","Federal Funds","Non-Farm","Nonfarm","Unemployment",
-                      "Powell","PCE","GDP","Retail Sales","Jobless","ADP","ISM","Payroll","Rate")
+                      "Powell","PCE","GDP","Retail Sales","Jobless","ADP","ISM","Payroll","Rate",
+                      "Inflation","Treasury","Consumer Confidence","Durable Goods","Beige Book")
+
+          def playbook(title):
+              t = title.lower()
+              if any(k in t for k in ("cpi","ppi","pce","inflation")):
+                  return ("HOTTER than forecast -> yields and dollar up -> GOLD DOWN.\n"
+                          "COOLER than forecast -> rate-cut bets up -> GOLD UP.\n"
+                          "Watch the CORE number. The first spike often reverses within 15 min.")
+              if any(k in t for k in ("fomc","federal funds","powell","meeting minutes","beige book")):
+                  return ("HAWKISH -> GOLD DOWN. DOVISH -> GOLD UP.\n"
+                          "Two-way whipsaw is normal; do not trade the first candle.")
+              if any(k in t for k in ("non-farm","nonfarm","payroll","adp","unemployment","jobless","employment")):
+                  return ("STRONG jobs -> dollar up -> GOLD DOWN. WEAK jobs -> cuts priced -> GOLD UP.\n"
+                          "Revisions to the prior month matter as much as the print.")
+              if any(k in t for k in ("retail sales","gdp","ism","consumer confidence","durable goods")):
+                  return ("STRONG growth -> GOLD DOWN. WEAK growth -> GOLD UP, unless it reads as risk-off "
+                          "and gold catches a haven bid. Lower conviction than inflation or jobs.")
+              return "Direction is not mechanical here. Expect widened spreads and a sweep both ways first."
 
           def calendar():
               try:
@@ -31,12 +51,15 @@ jobs:
               out = []
               for e in raw:
                   t, c, i = e.get("title",""), e.get("country",""), e.get("impact","")
-                  if c != "USD": continue
-                  if not (i == "High" or (i == "Medium" and any(k.lower() in t.lower() for k in KEYWORDS))):
+                  # every High-impact event on the calendar, plus the dollar's second tier
+                  if not (i == "High" or (c == "USD" and i == "Medium"
+                                          and any(k.lower() in t.lower() for k in KEYWORDS))):
                       continue
                   try: ts = datetime.datetime.fromisoformat(e["date"].strip()).timestamp()
                   except Exception: continue
-                  out.append({"ts": ts, "title": t, "imp": i})
+                  out.append({"ts": ts, "title": t, "imp": i, "cur": c,
+                              "fc": e.get("forecast","") or "n/a",
+                              "pv": e.get("previous","") or "n/a"})
               return sorted(out, key=lambda x: x["ts"])
 
           def news_state():
@@ -86,6 +109,22 @@ jobs:
                "note": "Swing low. A 4H CLOSE below reopens 4030. A failed break and reclaim is the long, not the short. Decide on the close, never the wick."},
           ]
 
+          if os.environ.get("CRON") == "0 5 * * 1-5":
+              now = time.time(); day = datetime.datetime.now().date()
+              todays = [e for e in calendar()
+                        if datetime.datetime.fromtimestamp(e["ts"]).date() == day and e["ts"] > now]
+              if todays:
+                  lines = [f"{datetime.datetime.fromtimestamp(e['ts']):%H:%M}  {e['cur']} [{e['imp']}]  {e['title']}"
+                           f"\n     fc {e['fc']} | prev {e['pv']}" for e in todays]
+                  push(f"GOLD DIARY - {len(todays)} event(s) today",
+                       f"Gold {price:.1f}.\n\n" + "\n".join(lines) +
+                       f"\n\n-> You get a separate alert one hour before each one, with the direction rule. "
+                       f"Entries are suppressed from 30 min before to 20 min after.")
+              else:
+                  push("GOLD DIARY - clear day",
+                       f"Gold {price:.1f}. No high-impact releases scheduled today. Levels run unfiltered.")
+              raise SystemExit(0)
+
           if os.environ.get("EVENT") == "workflow_dispatch":
               push("GitHub gold alarm OK (map of 8 Oct)",
                    f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
@@ -104,6 +143,16 @@ jobs:
               news_tag = ""
               if state == "warn":
                   news_tag = f"\nNEWS: {ev['title']} in {int(mins)}m - half size, or wait it out.\n"
+                  # fires once: only the run that first crosses the 60-minute mark
+                  if 55 <= mins <= 60:
+                      when = datetime.datetime.fromtimestamp(ev["ts"]).strftime("%H:%M")
+                      push(f"GOLD NEWS IN 1 HOUR - {ev['cur']} {ev['title']}",
+                           f"{ev['imp']} impact at {when} server time.\n"
+                           f"Forecast {ev['fc']} | Previous {ev['pv']}\n"
+                           f"Gold now {price:.1f}.\n\n"
+                           f"WHICH WAY:\n{playbook(ev['title'])}\n\n"
+                           f"-> Bank open scalps or move the stop to break-even. "
+                           f"No new entries inside 30 minutes of the release.")
 
               for z in ZONES:
                   if z["lo"] - 3 <= price <= z["hi"] + 3:
