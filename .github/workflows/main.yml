@@ -1,7 +1,7 @@
 name: Gold Zone Alarm
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 jobs:
   check-gold:
@@ -37,6 +37,18 @@ jobs:
               {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4066, "hi": 4088,
                "entry": 4077, "sl": 4062, "tp": (4111, 4127, 4156),
                "note": "4066.5-4087.5, base of the recovery, directly above the swept low. Best long but COUNTER-TREND. Sweep + reclaim + 5m BOS, never chase."},
+              {"grade": "B", "dir": "SHORT @ POC", "lo": 4178, "hi": 4190,
+               "entry": 4184.3, "sl": 4196, "tp": (4156, 4145, 4127),
+               "note": "Volume POC, max-liquidity shelf, now overhead supply. Also a magnet, so it can slice straight through. Rejection close required."},
+              {"grade": "B", "dir": "SCALP @ VAL", "lo": 4141, "hi": 4150,
+               "entry": 4145.3, "sl": 4154, "tp": (4127, 4111, 4100),
+               "note": "Value-area low. Short from below it, long only on a close back inside value. Scalp size."},
+              {"grade": "C", "dir": "SCALP PIVOT", "lo": 4115, "hi": 4125,
+               "entry": 4120, "sl": 4129, "tp": (4100, 4087, 4077),
+               "note": "Mid-range pivot. Scalp only, no size, take the first target fast."},
+              {"grade": "C", "dir": "SCALP @ INTRADAY SSL", "lo": 4096, "hi": 4104,
+               "entry": 4100, "sl": 4089, "tp": (4127, 4140, 4156),
+               "note": "Session low liquidity. Counter-trend scalp, only on a sweep and 5m reclaim above 4100."},
               {"grade": "A", "dir": "BREAK WATCH @ SSL", "lo": 4060, "hi": 4068,
                "entry": 4066.5, "sl": 4082, "tp": (4045, 4030, 4010),
                "note": "Swing low. A 4H CLOSE below reopens 4030. A failed break and reclaim is the long, not the short. Decide on the close, never the wick."},
