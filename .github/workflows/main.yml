@@ -78,35 +78,36 @@ jobs:
                   headers={"Title": t, "Priority": "high", "Tags": "rotating_light"}, method="POST")
               urllib.request.urlopen(req, timeout=15); print("PUSHED:", t)
 
-          # Map of 8 Oct 2026. 4H DOWNTREND: lower highs and lower lows, VRVP bias bearish.
-          # POC 4184.3, VAH 4196.4, VAL 4145.3. Impulsive 4H drop 4125.9 -> 4066.5, now 4111.
-          # Bearish OB 4156.5-4184.4. Imbalance 4127-4140. Bullish OB 4066.5-4087.5.
-          # BSL above: 4127, 4140, 4156 equal highs, 4184, 4227.5. SSL below: 4100, 4082, 4066.5, 4030.
+          # Map of 12 Oct 2026. 4H UPTREND off the 4066.5 swing low: higher highs, higher lows.
+          # Price 4204.8. Rising lows 4066.5 -> 4103 -> 4121 -> 4143 -> 4174 -> 4184.8 -> 4200.
+          # BSL overhead: 4217.4, 4219.4, 4225.4, 4227.5 equal highs = one liquidity shelf.
+          # Demand on the way up: 4184.8-4191.6, 4143-4156 (origin of the 4143->4186 impulse), 4121-4133.
+          # SSL below: 4168.5, 4143, 4121, 4103, 4082, 4066.5. Structure breaks on a 4H CLOSE under 4168.
           ZONES = [
-              {"grade": "A+", "dir": "SHORT @ 4H BEAR-OB", "lo": 4156, "hi": 4185,
-               "entry": 4170, "sl": 4186, "tp": (4140, 4111, 4066),
-               "note": "4H bearish OB 4156.5-4184.4, origin of the drop, sits under POC 4184. WITH the trend. Needs the sweep of the 4156 equal highs THEN a 5m rejection close back inside."},
-              {"grade": "B", "dir": "SHORT @ IMBALANCE", "lo": 4127, "hi": 4140,
-               "entry": 4133.5, "sl": 4142, "tp": (4111, 4100, 4082),
-               "note": "Shallow 4H imbalance left by the drop. Tight stop, lower conviction than 4170."},
-              {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4066, "hi": 4088,
-               "entry": 4077, "sl": 4062, "tp": (4111, 4127, 4156),
-               "note": "4066.5-4087.5, base of the recovery, directly above the swept low. Best long but COUNTER-TREND. Sweep + reclaim + 5m BOS, never chase."},
-              {"grade": "B", "dir": "SHORT @ POC", "lo": 4178, "hi": 4190,
-               "entry": 4184.3, "sl": 4196, "tp": (4156, 4145, 4127),
-               "note": "Volume POC, max-liquidity shelf, now overhead supply. Also a magnet, so it can slice straight through. Rejection close required."},
-              {"grade": "B", "dir": "SCALP @ VAL", "lo": 4141, "hi": 4150,
-               "entry": 4145.3, "sl": 4154, "tp": (4127, 4111, 4100),
-               "note": "Value-area low. Short from below it, long only on a close back inside value. Scalp size."},
-              {"grade": "C", "dir": "SCALP PIVOT", "lo": 4115, "hi": 4125,
-               "entry": 4120, "sl": 4129, "tp": (4100, 4087, 4077),
-               "note": "Mid-range pivot. Scalp only, no size, take the first target fast."},
-              {"grade": "C", "dir": "SCALP @ INTRADAY SSL", "lo": 4096, "hi": 4104,
-               "entry": 4100, "sl": 4089, "tp": (4127, 4140, 4156),
-               "note": "Session low liquidity. Counter-trend scalp, only on a sweep and 5m reclaim above 4100."},
-              {"grade": "A", "dir": "BREAK WATCH @ SSL", "lo": 4060, "hi": 4068,
-               "entry": 4066.5, "sl": 4082, "tp": (4045, 4030, 4010),
-               "note": "Swing low. A 4H CLOSE below reopens 4030. A failed break and reclaim is the long, not the short. Decide on the close, never the wick."},
+              {"grade": "A+", "dir": "LONG @ 4H DEMAND", "lo": 4184, "hi": 4192,
+               "entry": 4188, "sl": 4172, "tp": (4210, 4227, 4248),
+               "note": "4184.8-4191.6, the shelf price broke out from and the last higher low. WITH the trend. Needs a sweep into it THEN a 5m rejection close back up. Invalid on a 4H close below 4168."},
+              {"grade": "A", "dir": "SHORT @ BSL SWEEP", "lo": 4217, "hi": 4229,
+               "entry": 4224, "sl": 4238, "tp": (4205, 4191, 4174),
+               "note": "4217.4/4219.4/4225.4/4227.5 equal highs, the only real supply overhead. COUNTER-TREND: scalp size, requires the wick through and a 5m close back below 4217. A 4H CLOSE above 4227.5 kills this and is the long."},
+              {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4143, "hi": 4156,
+               "entry": 4149, "sl": 4131, "tp": (4174, 4191, 4210),
+               "note": "Origin of the impulse 4143 -> 4186. Deeper, better priced, still with the trend. Sweep + reclaim + 5m BOS, never chase into it."},
+              {"grade": "B", "dir": "LONG @ IMBALANCE", "lo": 4168, "hi": 4176,
+               "entry": 4172, "sl": 4160, "tp": (4191, 4204, 4217),
+               "note": "Shallow 4H imbalance and the first support under price. Tight stop, lower conviction than 4188."},
+              {"grade": "B", "dir": "LONG @ RANGE LOW", "lo": 4121, "hi": 4133,
+               "entry": 4127, "sl": 4112, "tp": (4150, 4168, 4186),
+               "note": "Prior consolidation floor. Only if 4143 fails and holds as resistance; otherwise this is a broken market, not a dip."},
+              {"grade": "C", "dir": "SCALP @ 4103 SSL", "lo": 4098, "hi": 4108,
+               "entry": 4103, "sl": 4092, "tp": (4121, 4133, 4143),
+               "note": "Session-low liquidity. Scalp only, no size, first target taken fast."},
+              {"grade": "C", "dir": "SCALP PIVOT", "lo": 4196, "hi": 4204,
+               "entry": 4200, "sl": 4190, "tp": (4212, 4219, 4227),
+               "note": "Mid-structure pivot where price sits now. Scalp only, and skip it if the 4188 demand is still untested."},
+              {"grade": "A", "dir": "BREAK WATCH @ BSL", "lo": 4227, "hi": 4234,
+               "entry": 4227.5, "sl": 4208, "tp": (4248, 4265, 4290),
+               "note": "All-time shelf. A 4H CLOSE above 4227.5 opens clear air. A failed break and reclaim below is the short, not the long. Decide on the close, never the wick."},
           ]
 
           if os.environ.get("CRON") == "0 5 * * 1-5":
@@ -126,9 +127,9 @@ jobs:
               raise SystemExit(0)
 
           if os.environ.get("EVENT") == "workflow_dispatch":
-              push("GitHub gold alarm OK (map of 8 Oct)",
+              push("GitHub gold alarm OK (map of 12 Oct)",
                    f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
-                   f"4H bearish. Armed: SHORT 4156-4185 [A+], SHORT 4127-4140 [B], LONG 4066-4088 [A], SSL break watch 4066.5 [A].")
+                   f"4H bullish. Armed: LONG 4184-4192 [A+], SHORT 4217-4229 [A], LONG 4143-4156 [A], BSL break watch 4227.5 [A].")
           else:
               state, ev, mins = news_state()
               if state == "lock":
