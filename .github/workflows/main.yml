@@ -2,7 +2,6 @@ name: Gold Zone Alarm
 on:
   schedule:
     - cron: '*/5 * * * *'
-    - cron: '0 5 * * 1-5'   # daily gold news agenda
   workflow_dispatch:
 jobs:
   check-gold:
@@ -110,60 +109,61 @@ jobs:
                "note": "All-time shelf. A 4H CLOSE above 4227.5 opens clear air. A failed break and reclaim below is the short, not the long. Decide on the close, never the wick."},
           ]
 
-          if os.environ.get("CRON") == "0 5 * * 1-5":
-              now = time.time(); day = datetime.datetime.now().date()
-              todays = [e for e in calendar()
-                        if datetime.datetime.fromtimestamp(e["ts"]).date() == day and e["ts"] > now]
-              if todays:
-                  lines = [f"{datetime.datetime.fromtimestamp(e['ts']):%H:%M}  {e['cur']} [{e['imp']}]  {e['title']}"
-                           f"\n     fc {e['fc']} | prev {e['pv']}" for e in todays]
-                  push(f"GOLD DIARY - {len(todays)} event(s) today",
-                       f"Gold {price:.1f}.\n\n" + "\n".join(lines) +
-                       f"\n\n-> You get a separate alert one hour before each one, with the direction rule. "
-                       f"Entries are suppressed from 30 min before to 20 min after.")
+          # ---- A+ ONLY, AND ONLY AFTER A CONFIRMED STRUCTURE BREAK ----
+          # User's standing rule: no zone-touch alerts, no news pushes, no diary.
+          # Fire once price has swept an A+ zone AND closed back out of it AND
+          # broken the opposing 5m swing. Anything less is printed, never pushed.
+          APLUS = [z for z in ZONES if z["grade"] == "A+"]
+
+          def bars5m():
+              url = ("https://query1.finance.yahoo.com/v8/finance/chart/GC=F"
+                     "?interval=5m&range=2d")
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  q = json.load(r)["chart"]["result"][0]["indicators"]["quote"][0]
+              out = []
+              for o, h, l, c in zip(q["open"], q["high"], q["low"], q["close"]):
+                  if None in (o, h, l, c): continue
+                  out.append({"o": o, "h": h, "l": l, "c": c})
+              return out
+
+          raw = bars5m()
+          if not raw:
+              print("no 5m data - silent"); raise SystemExit(0)
+          # Yahoo quotes COMEX futures; shift them onto the spot price the zones are drawn on.
+          off = price - raw[-1]["c"]
+          B = [{k: v + off for k, v in b.items()} for b in raw][-40:]
+          print(f"5m bars {len(B)}, futures offset {off:+.1f}")
+
+          state, ev, mins = news_state()
+          if state == "lock":
+              print("news lock -", ev["title"], "- silent"); raise SystemExit(0)
+
+          fired = False
+          for z in APLUS:
+              look = B[-8:]
+              swept = any(b["l"] <= z["hi"] and b["h"] >= z["lo"] for b in look[:-1])
+              last = B[-1]
+              if not swept: print(z["dir"], "- no sweep yet"); continue
+              if "LONG" in z["dir"]:
+                  reclaimed = last["c"] > z["hi"]
+                  swing = max(b["h"] for b in B[-12:-1])
+                  bos = last["c"] > swing
               else:
-                  push("GOLD DIARY - clear day",
-                       f"Gold {price:.1f}. No high-impact releases scheduled today. Levels run unfiltered.")
-              raise SystemExit(0)
-
-          if os.environ.get("EVENT") == "workflow_dispatch":
-              push("GitHub gold alarm OK (map of 12 Oct)",
-                   f"Cloud alarm live 24/7, Mac can be off. Gold {price:.1f}.\n"
-                   f"4H bullish. Armed: LONG 4184-4192 [A+], SHORT 4217-4229 [A], LONG 4143-4156 [A], BSL break watch 4227.5 [A].")
-          else:
-              state, ev, mins = news_state()
-              if state == "lock":
-                  when = datetime.datetime.fromtimestamp(ev["ts"]).strftime("%H:%M")
-                  if -1 <= mins <= LOCK_PRE:   # announce once, on the way in
-                      push(f"GOLD LOCKED - {ev['title']}",
-                           f"USD {ev['imp']} impact at {when} server time. Gold {price:.1f}.\n\n"
-                           f"-> Setups suppressed until {LOCK_POST} min after the print. "
-                           f"Spreads widen and stops get hunted here. Wait for the 5m close that follows it.")
-                  print("news lock -", ev["title"]); raise SystemExit(0)
-
-              news_tag = ""
-              if state == "warn":
-                  news_tag = f"\nNEWS: {ev['title']} in {int(mins)}m - half size, or wait it out.\n"
-                  # fires once: only the run that first crosses the 60-minute mark
-                  if 55 <= mins <= 60:
-                      when = datetime.datetime.fromtimestamp(ev["ts"]).strftime("%H:%M")
-                      push(f"GOLD NEWS IN 1 HOUR - {ev['cur']} {ev['title']}",
-                           f"{ev['imp']} impact at {when} server time.\n"
-                           f"Forecast {ev['fc']} | Previous {ev['pv']}\n"
-                           f"Gold now {price:.1f}.\n\n"
-                           f"WHICH WAY:\n{playbook(ev['title'])}\n\n"
-                           f"-> Bank open scalps or move the stop to break-even. "
-                           f"No new entries inside 30 minutes of the release.")
-
-              for z in ZONES:
-                  if z["lo"] - 3 <= price <= z["hi"] + 3:
-                      t1, t2, t3 = z["tp"]
-                      rr = abs(t2 - z["entry"]) / abs(z["entry"] - z["sl"])
-                      push(f"[{z['grade']}] GOLD {z['dir']}",
-                           f"ENTRY {z['entry']}\nSL {z['sl']}\nTP1 {t1}\nTP2 {t2}\nTP3 {t3}\n"
-                           f"R:R to TP2 = 1:{rr:.1f}\n\n{z['note']}\n\nPrice now {price:.1f}\n"
-                           f"-> Confirm the sweep, the 5m BOS and the FVG before placing. No confirmation, no trade.")
-                      break
-              else:
-                  print("no zone near - no alert")
+                  reclaimed = last["c"] < z["lo"]
+                  swing = min(b["l"] for b in B[-12:-1])
+                  bos = last["c"] < swing
+              if not (reclaimed and bos):
+                  print(z["dir"], f"- swept, waiting: reclaim={reclaimed} bos={bos}"); continue
+              t1, t2, t3 = z["tp"]
+              rr = abs(t2 - z["entry"]) / abs(z["entry"] - z["sl"])
+              push(f"[A+ CONFIRMED] GOLD {z['dir']}",
+                   f"Structure has broken. Sweep of {z['lo']}-{z['hi']}, 5m close back out, "
+                   f"and 5m BOS through {swing:.1f}.\n\n"
+                   f"ENTRY {z['entry']}\nSL {z['sl']}\nTP1 {t1}\nTP2 {t2}\nTP3 {t3}\n"
+                   f"R:R to TP2 = 1:{rr:.1f}\n\n{z['note']}\n\nPrice now {price:.1f}")
+              fired = True
+              break
+          if not fired:
+              print("no confirmed A+ structure break - nothing sent")
           PY
