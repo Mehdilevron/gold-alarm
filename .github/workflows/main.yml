@@ -77,36 +77,36 @@ jobs:
                   headers={"Title": t, "Priority": "high", "Tags": "rotating_light"}, method="POST")
               urllib.request.urlopen(req, timeout=15); print("PUSHED:", t)
 
-          # Map of 12 Oct 2026. 4H UPTREND off the 4066.5 swing low: higher highs, higher lows.
-          # Price 4204.8. Rising lows 4066.5 -> 4103 -> 4121 -> 4143 -> 4174 -> 4184.8 -> 4200.
-          # BSL overhead: 4217.4, 4219.4, 4225.4, 4227.5 equal highs = one liquidity shelf.
-          # Demand on the way up: 4184.8-4191.6, 4143-4156 (origin of the 4143->4186 impulse), 4121-4133.
-          # SSL below: 4168.5, 4143, 4121, 4103, 4082, 4066.5. Structure breaks on a 4H CLOSE under 4168.
+          # Map of 12 Oct 2026, LATE. The rising structure off 4066.5 is BROKEN:
+          # the 4H closed 4165.3, below the 4168 invalidation, after a 4217.4 high.
+          # First lower high 4196.1, first lower low 4154.7. Short-term lean is now DOWN.
+          # Flipped supply: 4184-4192 (old demand), 4193-4202 (breakdown origin), 4217-4229 shelf.
+          # SSL below: 4154.7, 4143, 4121, 4103, 4082, 4066.5. A 4H close under 4143 opens 4103.
           ZONES = [
-              {"grade": "A+", "dir": "LONG @ 4H DEMAND", "lo": 4184, "hi": 4192,
-               "entry": 4188, "sl": 4172, "tp": (4210, 4227, 4248),
-               "note": "4184.8-4191.6, the shelf price broke out from and the last higher low. WITH the trend. Needs a sweep into it THEN a 5m rejection close back up. Invalid on a 4H close below 4168."},
-              {"grade": "A", "dir": "SHORT @ BSL SWEEP", "lo": 4217, "hi": 4229,
-               "entry": 4224, "sl": 4238, "tp": (4205, 4191, 4174),
-               "note": "4217.4/4219.4/4225.4/4227.5 equal highs, the only real supply overhead. COUNTER-TREND: scalp size, requires the wick through and a 5m close back below 4217. A 4H CLOSE above 4227.5 kills this and is the long."},
+              {"grade": "A+", "dir": "SHORT @ FLIPPED DEMAND", "lo": 4184, "hi": 4192,
+               "entry": 4188, "sl": 4203, "tp": (4165, 4154, 4143),
+               "note": "The 4184-4192 demand that failed is now supply, and it sits under the first lower high. WITH the new lean. Needs the sweep into it THEN a 5m close back below 4184 and a BOS. Invalid on a 4H close above 4202."},
+              {"grade": "A", "dir": "SHORT @ BREAKDOWN ORIGIN", "lo": 4193, "hi": 4202,
+               "entry": 4197, "sl": 4210, "tp": (4174, 4160, 4143),
+               "note": "Where the 4H breakdown began, capped by the 4196.1 lower high. Deeper retrace, tighter risk, same direction."},
               {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4143, "hi": 4156,
-               "entry": 4149, "sl": 4131, "tp": (4174, 4191, 4210),
-               "note": "Origin of the impulse 4143 -> 4186. Deeper, better priced, still with the trend. Sweep + reclaim + 5m BOS, never chase into it."},
-              {"grade": "B", "dir": "LONG @ IMBALANCE", "lo": 4168, "hi": 4176,
-               "entry": 4172, "sl": 4160, "tp": (4191, 4204, 4217),
-               "note": "Shallow 4H imbalance and the first support under price. Tight stop, lower conviction than 4188."},
+               "entry": 4150, "sl": 4134, "tp": (4168, 4184, 4196),
+               "note": "4143-4156 already produced the bounce from 4154.7. COUNTER-TREND now that structure has broken: sweep, reclaim, 5m BOS, scalp size only."},
+              {"grade": "B", "dir": "SHORT @ 4217 SHELF", "lo": 4217, "hi": 4229,
+               "entry": 4224, "sl": 4238, "tp": (4196, 4184, 4168),
+               "note": "The equal-high shelf. Far above price and only reachable on a full reclaim, which would also undo the breakdown."},
               {"grade": "B", "dir": "LONG @ RANGE LOW", "lo": 4121, "hi": 4133,
-               "entry": 4127, "sl": 4112, "tp": (4150, 4168, 4186),
-               "note": "Prior consolidation floor. Only if 4143 fails and holds as resistance; otherwise this is a broken market, not a dip."},
+               "entry": 4127, "sl": 4112, "tp": (4143, 4156, 4168),
+               "note": "Prior consolidation floor beneath. Only once 4143 has failed and held as resistance."},
               {"grade": "C", "dir": "SCALP @ 4103 SSL", "lo": 4098, "hi": 4108,
                "entry": 4103, "sl": 4092, "tp": (4121, 4133, 4143),
-               "note": "Session-low liquidity. Scalp only, no size, first target taken fast."},
-              {"grade": "C", "dir": "SCALP PIVOT", "lo": 4196, "hi": 4204,
-               "entry": 4200, "sl": 4190, "tp": (4212, 4219, 4227),
-               "note": "Mid-structure pivot where price sits now. Scalp only, and skip it if the 4188 demand is still untested."},
-              {"grade": "A", "dir": "BREAK WATCH @ BSL", "lo": 4227, "hi": 4234,
-               "entry": 4227.5, "sl": 4208, "tp": (4248, 4265, 4290),
-               "note": "All-time shelf. A 4H CLOSE above 4227.5 opens clear air. A failed break and reclaim below is the short, not the long. Decide on the close, never the wick."},
+               "note": "Deeper session liquidity. Scalp only, no size, first target taken fast."},
+              {"grade": "C", "dir": "SCALP PIVOT", "lo": 4166, "hi": 4176,
+               "entry": 4171, "sl": 4181, "tp": (4160, 4154, 4143),
+               "note": "Where price sits now, between the broken level and the bounce low. No edge: skip it unless 4184 stays untested."},
+              {"grade": "A", "dir": "BREAK WATCH @ 4143", "lo": 4138, "hi": 4146,
+               "entry": 4143, "sl": 4158, "tp": (4121, 4103, 4082),
+               "note": "The last 4H demand. A CLOSE below 4143 opens 4103 and then 4082. A failed break and reclaim is the long, not the short. Decide on the close, never the wick."},
           ]
 
           # ---- A+ ONLY, AND ONLY AFTER A CONFIRMED STRUCTURE BREAK ----
