@@ -99,6 +99,9 @@ jobs:
           ]
 
           # ---- A+ ONLY, AND ONLY AFTER A CONFIRMED STRUCTURE BREAK ----
+          # STANDING ORDER (13 Oct 2026): zones in this file are built from CRT + ICT +
+          # price action + RTM confluence, and only levels worth ~70%+ are graded A+.
+          # The runner's job is purely mechanical confirmation of what is already mapped.
           # User's standing rule: no zone-touch alerts, no news pushes, no diary.
           # Fire once price has swept an A+ zone AND closed back out of it AND
           # broken the opposing 5m swing. Anything less is printed, never pushed.
