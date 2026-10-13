@@ -89,7 +89,7 @@ jobs:
               {"grade": "A", "dir": "SHORT @ BREAKDOWN ORIGIN", "lo": 4193, "hi": 4202,
                "entry": 4197, "sl": 4210, "tp": (4174, 4160, 4143),
                "note": "Where the 4H breakdown began, capped by the 4196.1 lower high. Deeper retrace, tighter risk, same direction."},
-              {"grade": "A", "dir": "LONG @ 4H BULL-OB", "lo": 4143, "hi": 4156,
+              {"grade": "A+", "dir": "LONG @ 4H BULL-OB", "lo": 4143, "hi": 4156,
                "entry": 4150, "sl": 4134, "tp": (4168, 4184, 4196),
                "note": "4143-4156 already produced the bounce from 4154.7. COUNTER-TREND now that structure has broken: sweep, reclaim, 5m BOS, scalp size only."},
               {"grade": "B", "dir": "SHORT @ 4217 SHELF", "lo": 4217, "hi": 4229,
