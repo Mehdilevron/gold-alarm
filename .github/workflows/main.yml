@@ -3,159 +3,24 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   check-gold:
     runs-on: ubuntu-latest
     steps:
-      - name: Check gold price and alert phone
-        env:
-          EVENT: ${{ github.event_name }}
-          CRON:  ${{ github.event.schedule }}
+      - uses: actions/checkout@v4
+      - name: Derive structure and alert phone
+        run: python3 gold_auto.py
+      - name: Persist alert state
         run: |
-          python3 - <<'PY'
-          import os, json, time, datetime, urllib.request
-          NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
-
-          # --- news filter: high-impact USD releases move gold more than any level ---
-          CAL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-          WARN_MIN, LOCK_PRE, LOCK_POST = 60, 30, 20
-          KEYWORDS = ("CPI","PPI","FOMC","Federal Funds","Non-Farm","Nonfarm","Unemployment",
-                      "Powell","PCE","GDP","Retail Sales","Jobless","ADP","ISM","Payroll","Rate",
-                      "Inflation","Treasury","Consumer Confidence","Durable Goods","Beige Book")
-
-          def playbook(title):
-              t = title.lower()
-              if any(k in t for k in ("cpi","ppi","pce","inflation")):
-                  return ("HOTTER than forecast -> yields and dollar up -> GOLD DOWN.\n"
-                          "COOLER than forecast -> rate-cut bets up -> GOLD UP.\n"
-                          "Watch the CORE number. The first spike often reverses within 15 min.")
-              if any(k in t for k in ("fomc","federal funds","powell","meeting minutes","beige book")):
-                  return ("HAWKISH -> GOLD DOWN. DOVISH -> GOLD UP.\n"
-                          "Two-way whipsaw is normal; do not trade the first candle.")
-              if any(k in t for k in ("non-farm","nonfarm","payroll","adp","unemployment","jobless","employment")):
-                  return ("STRONG jobs -> dollar up -> GOLD DOWN. WEAK jobs -> cuts priced -> GOLD UP.\n"
-                          "Revisions to the prior month matter as much as the print.")
-              if any(k in t for k in ("retail sales","gdp","ism","consumer confidence","durable goods")):
-                  return ("STRONG growth -> GOLD DOWN. WEAK growth -> GOLD UP, unless it reads as risk-off "
-                          "and gold catches a haven bid. Lower conviction than inflation or jobs.")
-              return "Direction is not mechanical here. Expect widened spreads and a sweep both ways first."
-
-          def calendar():
-              try:
-                  req = urllib.request.Request(CAL, headers={"User-Agent": "Mozilla/5.0"})
-                  with urllib.request.urlopen(req, timeout=20) as r:
-                      raw = json.load(r)
-              except Exception as ex:
-                  print("calendar error:", ex); return []
-              out = []
-              for e in raw:
-                  t, c, i = e.get("title",""), e.get("country",""), e.get("impact","")
-                  # every High-impact event on the calendar, plus the dollar's second tier
-                  if not (i == "High" or (c == "USD" and i == "Medium"
-                                          and any(k.lower() in t.lower() for k in KEYWORDS))):
-                      continue
-                  try: ts = datetime.datetime.fromisoformat(e["date"].strip()).timestamp()
-                  except Exception: continue
-                  out.append({"ts": ts, "title": t, "imp": i, "cur": c,
-                              "fc": e.get("forecast","") or "n/a",
-                              "pv": e.get("previous","") or "n/a"})
-              return sorted(out, key=lambda x: x["ts"])
-
-          def news_state():
-              now = time.time()
-              for e in calendar():
-                  m = (e["ts"] - now) / 60.0
-                  if -LOCK_POST <= m <= LOCK_PRE: return "lock", e, m
-                  if LOCK_PRE < m <= WARN_MIN:    return "warn", e, m
-              return "clear", None, None
-          with urllib.request.urlopen("https://api.gold-api.com/price/XAU", timeout=15) as r:
-              price = float(json.load(r)["price"])
-          print("gold:", price)
-
-          def push(t, m):
-              req = urllib.request.Request(NTFY, data=m.encode(),
-                  headers={"Title": t, "Priority": "high", "Tags": "rotating_light"}, method="POST")
-              urllib.request.urlopen(req, timeout=15); print("PUSHED:", t)
-
-          # Map of 13 Oct 2026, from the live 30m/1H chart. Price 4197.7.
-          # Swing high 4217.4, swing low 4150.8 (swept, reversed). Lean is UP off 4150.8
-          # while 4168 holds; the 4200.7-4208.4 bear OB is the cap price is testing now.
-          ZONES = [
-              {"grade": "A+", "dir": "SHORT @ 30m BEAR OB", "lo": 4200.7, "hi": 4208.4,
-               "entry": 4204, "sl": 4218, "tp": (4188, 4175, 4157),
-               "note": "Origin of the drop from 4204 to 4150.8. Needs the sweep into it THEN a 5m close back below 4200.7 and a 5m BOS. Invalid on a 1H close above 4208.4."},
-              {"grade": "A+", "dir": "LONG @ 30m BULL OB", "lo": 4150.8, "hi": 4157,
-               "entry": 4154, "sl": 4142, "tp": (4168, 4183, 4200),
-               "note": "The 4150.8 sweep that produced this leg up. WITH the lean. Needs sweep, 5m close back above 4157, 5m BOS. Invalid on a 1H close below 4150.8."},
-              {"grade": "A", "dir": "SHORT @ 1H SUPPLY", "lo": 4210, "hi": 4217.4,
-               "entry": 4214, "sl": 4228, "tp": (4200, 4188, 4175),
-               "note": "The swing-high shelf. Only after the 4200-4208 block has already been reclaimed."},
-              {"grade": "A", "dir": "LONG @ 1H SUPPORT", "lo": 4168, "hi": 4175.5,
-               "entry": 4172, "sl": 4160, "tp": (4188, 4200, 4210),
-               "note": "The pivot band price broke up through. First retest while the up-lean holds."},
-              {"grade": "B", "dir": "LONG @ 4109-4115", "lo": 4109, "hi": 4115.3,
-               "entry": 4112, "sl": 4098, "tp": (4133, 4150, 4168),
-               "note": "Deeper HTF demand. Only once 4150.8 has closed through and held as resistance."},
-          ]
-
-          # ---- A+ ONLY, AND ONLY AFTER A CONFIRMED STRUCTURE BREAK ----
-          # STANDING ORDER (13 Oct 2026): zones in this file are built from CRT + ICT +
-          # price action + RTM confluence, and only levels worth ~70%+ are graded A+.
-          # The runner's job is purely mechanical confirmation of what is already mapped.
-          # User's standing rule: no zone-touch alerts, no news pushes, no diary.
-          # Fire once price has swept an A+ zone AND closed back out of it AND
-          # broken the opposing 5m swing. Anything less is printed, never pushed.
-          APLUS = [z for z in ZONES if z["grade"] == "A+"]
-
-          def bars5m():
-              url = ("https://query1.finance.yahoo.com/v8/finance/chart/GC=F"
-                     "?interval=5m&range=2d")
-              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-              with urllib.request.urlopen(req, timeout=20) as r:
-                  q = json.load(r)["chart"]["result"][0]["indicators"]["quote"][0]
-              out = []
-              for o, h, l, c in zip(q["open"], q["high"], q["low"], q["close"]):
-                  if None in (o, h, l, c): continue
-                  out.append({"o": o, "h": h, "l": l, "c": c})
-              return out
-
-          raw = bars5m()
-          if not raw:
-              print("no 5m data - silent"); raise SystemExit(0)
-          # Yahoo quotes COMEX futures; shift them onto the spot price the zones are drawn on.
-          off = price - raw[-1]["c"]
-          B = [{k: v + off for k, v in b.items()} for b in raw][-40:]
-          print(f"5m bars {len(B)}, futures offset {off:+.1f}")
-
-          state, ev, mins = news_state()
-          if state == "lock":
-              print("news lock -", ev["title"], "- silent"); raise SystemExit(0)
-
-          fired = False
-          for z in APLUS:
-              look = B[-8:]
-              swept = any(b["l"] <= z["hi"] and b["h"] >= z["lo"] for b in look[:-1])
-              last = B[-1]
-              if not swept: print(z["dir"], "- no sweep yet"); continue
-              if "LONG" in z["dir"]:
-                  reclaimed = last["c"] > z["hi"]
-                  swing = max(b["h"] for b in B[-12:-1])
-                  bos = last["c"] > swing
-              else:
-                  reclaimed = last["c"] < z["lo"]
-                  swing = min(b["l"] for b in B[-12:-1])
-                  bos = last["c"] < swing
-              if not (reclaimed and bos):
-                  print(z["dir"], f"- swept, waiting: reclaim={reclaimed} bos={bos}"); continue
-              t1, t2, t3 = z["tp"]
-              rr = abs(t2 - z["entry"]) / abs(z["entry"] - z["sl"])
-              push(f"[A+ CONFIRMED] GOLD {z['dir']}",
-                   f"Structure has broken. Sweep of {z['lo']}-{z['hi']}, 5m close back out, "
-                   f"and 5m BOS through {swing:.1f}.\n\n"
-                   f"ENTRY {z['entry']}\nSL {z['sl']}\nTP1 {t1}\nTP2 {t2}\nTP3 {t3}\n"
-                   f"R:R to TP2 = 1:{rr:.1f}\n\n{z['note']}\n\nPrice now {price:.1f}")
-              fired = True
-              break
-          if not fired:
-              print("no confirmed A+ structure break - nothing sent")
-          PY
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name  "gold-alarm"
+            git config user.email "gold-alarm@users.noreply.github.com"
+            git add state.json
+            git commit -m "alert state"
+            git pull --rebase -q || true
+            git push -q
+          else
+            echo "no state change"
+          fi
