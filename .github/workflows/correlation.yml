@@ -1,0 +1,72 @@
+name: DXY Gold Correlation
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  corr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q yfinance
+      - name: Check dollar / gold relationship
+        run: |
+          python3 - <<'PY'
+          import urllib.request
+          import yfinance as yf
+
+          NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
+
+          def notify(title, msg, prio="high"):
+              req = urllib.request.Request(NTFY, data=msg.encode(),
+                    headers={"Title": title, "Priority": prio, "Tags": "currency_exchange"},
+                    method="POST")
+              try: urllib.request.urlopen(req, timeout=15)
+              except Exception as e: print("notify", e)
+
+          def series(sym):
+              df = yf.Ticker(sym).history(period="2d", interval="15m").dropna()
+              return df["Close"]
+
+          gold = series("GC=F")
+          dxy  = series("DX-Y.NYB")
+          n = min(len(gold), len(dxy), 96)
+          g, d = gold[-n:], dxy[-n:]
+
+          # rolling correlation over the last 24 bars (6 hours)
+          gr = g.pct_change().dropna()
+          dr = d.pct_change().dropna()
+          k = min(len(gr), len(dr), 24)
+          corr = gr[-k:].corr(dr[-k:])
+
+          # short-horizon moves, last 4 bars (1 hour)
+          gmove = (g.iloc[-1] / g.iloc[-5] - 1) * 100
+          dmove = (d.iloc[-1] / d.iloc[-5] - 1) * 100
+
+          print(f"corr={corr:.2f} gold={gmove:+.2f}% dxy={dmove:+.2f}%")
+
+          # normal state is inverse. Flag a clear break.
+          broken = corr > 0.3 and abs(gmove) > 0.25 and abs(dmove) > 0.15
+          aligned_strong = corr < -0.6 and abs(dmove) > 0.25
+
+          if broken:
+              notify(
+                  f"Dollar / gold correlation broken ({corr:+.2f})",
+                  f"Gold {gmove:+.2f}% and the dollar index {dmove:+.2f}% over the last hour, "
+                  f"moving together instead of opposite.\n\n"
+                  f"That usually means a flow driving both — risk-off bid, a central bank "
+                  f"headline, or positioning into data. Treat intraday levels as unreliable "
+                  f"until the inverse relationship returns.")
+          elif aligned_strong:
+              direction = "down" if dmove > 0 else "up"
+              notify(
+                  f"Dollar driving gold {direction} ({corr:+.2f})",
+                  f"Dollar index {dmove:+.2f}% in the last hour with a tight inverse read on gold "
+                  f"({gmove:+.2f}%).\n\n"
+                  f"Dollar strength is the cleanest reason gold goes {direction} from here. "
+                  f"Confluence for a {('short' if dmove > 0 else 'long')} if your level agrees.")
+          PY
