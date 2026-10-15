@@ -20,7 +20,14 @@ jobs:
           NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
           SYMBOLS = {"GC=F":"XAUUSD","SI=F":"XAGUSD","BTC-USD":"BTCUSD",
                      "EURUSD=X":"EURUSD","GBPUSD=X":"GBPUSD","USDJPY=X":"USDJPY",
-                     "AUDUSD=X":"AUDUSD","USDCAD=X":"USDCAD"}
+                     "AUDUSD=X":"AUDUSD","USDCAD=X":"USDCAD",
+                     "NZDUSD=X":"NZDUSD","USDCHF=X":"USDCHF",
+                     "EURJPY=X":"EURJPY","GBPJPY=X":"GBPJPY",
+                     "EURGBP=X":"EURGBP","AUDJPY=X":"AUDJPY",
+                     "CADJPY=X":"CADJPY","CHFJPY=X":"CHFJPY",
+                     "EURAUD=X":"EURAUD","GBPAUD=X":"GBPAUD",
+                     "EURCAD=X":"EURCAD","AUDNZD=X":"AUDNZD",
+                     "DX-Y.NYB":"DXY"}
           SWING = 12
 
           def notify(title, msg, prio="high"):
