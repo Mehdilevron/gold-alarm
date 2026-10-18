@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet yfinance pandas
       - name: Derive structure and alert phone
         run: python3 gold_auto.py
       - name: Persist alert state
