@@ -10,6 +10,46 @@ STATE = "state.json"
 RR = 3.0
 SWING = 3
 
+# Supply zones read off the OANDA:XAUUSD 4h chart on 25 Oct 2026.
+# Spot prices; OFFSET converts them to GC=F futures (set via env if it drifts).
+FIXED_SUPPLY = [
+    (4134.86, 4149.59),
+    (4147.92, 4163.22),
+    (4190.93, 4208.78),
+    (4210.93, 4231.96),
+    (4306.34, 4325.25),
+    (4388.45, 4413.85),
+    (4428.25, 4449.77),
+    (4498.29, 4523.57),
+    (4618.77, 4645.19),
+]
+FIXED_DEMAND = []
+OFFSET = float(os.environ.get("GOLD_SPOT_OFFSET", "0"))
+
+
+def check_fixed(ltf, st):
+    """Tap into a charted zone, then close back out of it, on the 5m."""
+    bar = ltf.iloc[-1]
+    hi, lo, cl = float(bar["High"]), float(bar["Low"]), float(bar["Close"])
+    fired = False
+    for low, high in FIXED_SUPPLY:
+        lo_a, hi_a = low + OFFSET, high + OFFSET
+        key = f"fx-supply:{round(low,2)}"
+        if hi >= lo_a and cl < lo_a and st.get(key) != "hit":
+            push("GOLD — SUPPLY ZONE",
+                 f"Tapped {low:.2f}-{high:.2f} and closed back below.\n"
+                 f"Price {cl:.2f}\nWaiting on BOS before acting.")
+            st[key] = "hit"; fired = True
+    for low, high in FIXED_DEMAND:
+        lo_a, hi_a = low + OFFSET, high + OFFSET
+        key = f"fx-demand:{round(high,2)}"
+        if lo <= hi_a and cl > hi_a and st.get(key) != "hit":
+            push("GOLD — DEMAND ZONE",
+                 f"Tapped {low:.2f}-{high:.2f} and closed back above.\n"
+                 f"Price {cl:.2f}\nWaiting on BOS before acting.")
+            st[key] = "hit"; fired = True
+    return fired
+
 
 def push(title, body):
     req = urllib.request.Request(TOPIC, data=body.encode(),
@@ -61,6 +101,9 @@ def main():
     ltf = fetch("5m", "5d")
     if len(htf) < 60 or len(ltf) < 5:
         print("not enough data"); return
+    st_fixed = load()
+    if check_fixed(ltf, st_fixed):
+        json.dump(st_fixed, open(STATE, "w"))
     bias, zone, above = structure(htf)
     if zone is None:
         print("no zone"); return
