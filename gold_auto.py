@@ -116,15 +116,16 @@ def main():
         print("already alerted on this zone"); return
 
     fired = None
-    if side == "demand" and bias == 1 and above and swept and bot <= lo <= top and cl > op:
+    # Pure price action: 30m CHoCH sets bias, price returns to the zone, confirming close.
+    if side == "demand" and bias == 1 and bot <= lo <= top and cl > op:
         e, s = cl, bot
         t = e + (e - s) * RR
-        push("GOLD BUY", f"Entry {e:.2f}\nStop {s:.2f}\nTarget {t:.2f}\nAMN 30m structure, 5m tap, 1:3")
+        push("GOLD BUY", f"Entry {e:.2f}\nStop {s:.2f}\nTarget {t:.2f}\n30m CHoCH + return to zone, 1:3")
         fired = "buy"
-    elif side == "supply" and bias == -1 and not above and swept and bot <= hi <= top and cl < op:
+    elif side == "supply" and bias == -1 and bot <= hi <= top and cl < op:
         e, s = cl, top
         t = e - (s - e) * RR
-        push("GOLD SELL", f"Entry {e:.2f}\nStop {s:.2f}\nTarget {t:.2f}\nAMN 30m structure, 5m tap, 1:3")
+        push("GOLD SELL", f"Entry {e:.2f}\nStop {s:.2f}\nTarget {t:.2f}\n30m CHoCH + return to zone, 1:3")
         fired = "sell"
 
     if fired:
