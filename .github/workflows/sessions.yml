@@ -1,0 +1,32 @@
+name: Gold Sessions
+on:
+  schedule:
+    - cron: '0 23 * * 0-4'    # Asian open  23:00 UTC
+    - cron: '0 7 * * 1-5'     # London open 07:00 UTC
+    - cron: '30 12 * * 1-5'   # New York open 12:30 UTC
+    - cron: '*/5 * * * 1-5'   # sweep watcher
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Asian | London | New York | sweep'
+        default: sweep
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet yfinance pandas
+      - name: Pick mode
+        id: m
+        run: |
+          case "${{ github.event.schedule }}" in
+            "0 23 * * 0-4")  echo 'mode=Asian' >> $GITHUB_OUTPUT ;;
+            "0 7 * * 1-5")   echo 'mode=London' >> $GITHUB_OUTPUT ;;
+            "30 12 * * 1-5") echo 'mode=New York' >> $GITHUB_OUTPUT ;;
+            *)               echo 'mode=${{ github.event.inputs.mode || 'sweep' }}' >> $GITHUB_OUTPUT ;;
+          esac
+      - name: Run
+        run: python3 gold_sessions.py "${{ steps.m.outputs.mode }}"
