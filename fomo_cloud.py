@@ -21,12 +21,17 @@ def get(url):
         return json.loads(r.read().decode())
 
 
-def push(title, body, tags="chart_with_upwards_trend"):
+def push(title, body, tags="chart_with_upwards_trend", img=None, click=None):
     data = body.encode("utf-8")
     safe = (title.replace("—", "-").replace("–", "-")
             .encode("ascii", "replace").decode("ascii"))
-    req = urllib.request.Request(NTFY_URL, data=data, headers={
-        "Title": safe, "Tags": tags, "Priority": "high"})
+    hdrs = {"Title": safe, "Tags": tags, "Priority": "high"}
+    if img:
+        hdrs["Icon"] = img
+        hdrs["Attach"] = img
+    if click:
+        hdrs["Click"] = click
+    req = urllib.request.Request(NTFY_URL, data=data, headers=hdrs)
     try:
         urllib.request.urlopen(req, timeout=20).read()
     except Exception as e:
@@ -151,25 +156,20 @@ def main():
                              "🔴 sellers in control" if m['sells'] > m['buys'] * 1.3 else
                              "🟡 balanced")
                     depth = f"{(m['liq']/m['mcap']*100):.1f}% of mcap in liquidity"
-                    body = (f"SCORE {m['pop']}/5   {chain.upper()}   age {m['age_h']}h\n"
-                            f"————————————————\n"
-                            f"PRICE      {pr(px)}\n"
-                            f"🟢 BUY ZONE   {pr(zone_lo)} – {pr(zone_hi)}\n"
-                            f"🔴 CUT BELOW  {pr(invalid)}\n"
-                            f"🟠 SELL 1/3   {pr(t1)}\n"
-                            f"🟠 SELL 1/3   {pr(t2)}\n"
-                            f"🟠 RUNNER     trail under {pr(px*1.15)}\n"
-                            f"————————————————\n"
-                            f"CHART   {trend}\n"
-                            f"FLOW    {press}\n"
-                            f"DEPTH   {depth}\n"
-                            f"HOLD WHILE above {pr(invalid)}\n"
-                            f"————————————————\n"
-                            f"Mcap {fmt(m['mcap'])}   Liq {fmt(m['liq'])}   Vol24 {fmt(m['vol'])}\n"
-                            f"1h {m['h1']}%   6h {m['h6']}%   buys {m['buys']}/sells {m['sells']}\n"
-                            f"Risk: size small. Levels, not advice.\n"
+                    img = ((p.get("info") or {}).get("imageUrl") or "")
+                    body = (f"NOW   {pr(px)}   ({m['h1']}% 1h)\n"
+                            f"\n"
+                            f"BUY   {pr(zone_lo)}  to  {pr(zone_hi)}\n"
+                            f"CUT   {pr(invalid)}\n"
+                            f"\n"
+                            f"SELL  1/3 at {pr(t1)}\n"
+                            f"SELL  1/3 at {pr(t2)}\n"
+                            f"RUN   rest to {pr(px*2.5)}\n"
+                            f"\n"
+                            f"{trend}   {press}\n"
+                            f"Mcap {fmt(m['mcap'])}   Liq {fmt(m['liq'])}   Vol {fmt(m['vol'])}\n"
                             f"{p.get('url','')}")
-                    push(f"{sym}  —  {fmt(m['mcap'])} mcap", body)
+                    push(f"{sym}  {fmt(m['mcap'])} mcap", body, "fire", img, p.get("url"))
                     print("ALERT", key, m, flush=True)
                 else:
                     print("skip", key, bad, flush=True)
