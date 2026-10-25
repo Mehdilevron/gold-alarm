@@ -1,4 +1,6 @@
 name: Gold Sessions
+permissions:
+  contents: write
 on:
   schedule:
     - cron: '0 23 * * 0-4'    # Asian open  23:00 UTC
@@ -30,3 +32,15 @@ jobs:
           esac
       - name: Run
         run: python3 gold_sessions.py "${{ steps.m.outputs.mode }}"
+      - name: Persist session state
+        run: |
+          if [ -n "$(git status --porcelain session_state.json)" ]; then
+            git config user.name  "gold-alarm"
+            git config user.email "gold-alarm@users.noreply.github.com"
+            git add session_state.json
+            git commit -m "session state"
+            git pull --rebase -q || true
+            git push -q
+          else
+            echo "no state change"
+          fi

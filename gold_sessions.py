@@ -76,6 +76,60 @@ def levels():
     return price, out
 
 
+def in_session(hrs, start, end):
+    return (hrs >= start or hrs < end) if start > end else (start <= hrs < end)
+
+
+def live_session(d):
+    """Which session is open right now, and its high/low SO FAR."""
+    now = dt.datetime.now(dt.timezone.utc)
+    hrs = now.hour + now.minute / 60.0
+    live = []
+    for name, (s, e) in (("Asian", ASIA), ("London", LONDON), ("New York", NY)):
+        if not in_session(hrs, s, e):
+            continue
+        start = now.replace(minute=0, second=0, microsecond=0,
+                            hour=int(s)) + dt.timedelta(minutes=(s % 1) * 60)
+        if s > e and hrs < e:          # wrapped past midnight
+            start -= dt.timedelta(days=1)
+        live.append((start, name))
+    # the session that opened most recently is the one in control
+    for start, name in sorted(live, reverse=True):
+        sel = d[(d.index >= start) & (d.index <= now)]
+        if sel.empty:
+            continue
+        return name, float(sel["High"].max()), float(sel["Low"].min()), start
+    return None, None, None, None
+
+
+def do_live(d, st):
+    """Push when the OPEN session prints a new high or low."""
+    name, hi, lo, start = live_session(d)
+    if not name:
+        return
+    key = f"live:{name}:{start:%Y-%m-%d}"
+    prev = st.get(key) or {}
+    ph, pl = prev.get("h"), prev.get("l")
+    if ph is None or pl is None:
+        st[key] = {"h": hi, "l": lo}
+        return
+    if hi > ph + 3:
+        push(f"NEW {name.upper()} HIGH",
+             f"{name} session high is now {hi:.2f} (was {ph:.2f}).\n"
+             f"Session low {lo:.2f} | range {hi-lo:.1f}\n"
+             f"Liquidity sits above. Sweep then close back inside is the trigger.",
+             tags="arrow_up")
+        ph = hi
+    if lo < pl - 3:
+        push(f"NEW {name.upper()} LOW",
+             f"{name} session low is now {lo:.2f} (was {pl:.2f}).\n"
+             f"Session high {hi:.2f} | range {hi-lo:.1f}\n"
+             f"Liquidity sits below. Sweep then close back inside is the trigger.",
+             tags="arrow_down")
+        pl = lo
+    st[key] = {"h": ph, "l": pl}
+
+
 def fmt(price, lv):
     lines = [f"Price {price:.2f}", ""]
     for k, (h, l) in lv.items():
@@ -129,6 +183,7 @@ def do_sweep():
                  f"Buy side: wait for the 30m change of character, then the "
                  f"return to demand. Stop below {lo:.2f}.")
             st[kl] = 1
+    do_live(m5, st)
     json.dump(st, open(STATE, "w"))
     print(fmt(price, lv))
 
