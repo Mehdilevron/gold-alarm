@@ -1,0 +1,34 @@
+name: Fomo Coin Radar
+permissions:
+  contents: write
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: fomo
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan once and push
+        env:
+          ONESHOT: '1'
+        run: python3 fomo_cloud.py
+      - name: Persist seen list
+        run: |
+          if [ -n "$(git status --porcelain fomo_seen.json)" ]; then
+            git config user.name  "gold-alarm"
+            git config user.email "gold-alarm@users.noreply.github.com"
+            git add fomo_seen.json
+            git commit -m "fomo seen"
+            git pull --rebase -q || true
+            git push -q
+          else
+            echo "no state change"
+          fi
