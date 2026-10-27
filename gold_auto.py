@@ -5,7 +5,7 @@ Runs one check per invocation (GitHub Actions cron)."""
 import json, os
 import pandas as pd, yfinance as yf, urllib.request
 
-TOPIC = "https://ntfy.sh/gold-alarm"
+TOPIC = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
 STATE = "state.json"
 RR = 3.0
 SWING = 3

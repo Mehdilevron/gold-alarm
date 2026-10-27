@@ -1,0 +1,30 @@
+name: Daily Heartbeat
+
+on:
+  schedule:
+    - cron: "0 4 * * *"      # 08:00 Dubai, every day
+  workflow_dispatch:
+
+jobs:
+  beat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm the cloud alarm is alive
+        run: |
+          python3 - <<'PY'
+          import urllib.request, datetime, json
+          NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
+          try:
+              with urllib.request.urlopen("https://api.gold-api.com/price/XAU", timeout=10) as r:
+                  px = float(json.load(r)["price"])
+              body = (f"Cloud alarm is alive. Gold {px:.1f}.\n\n"
+                      "Zone alarm, session read, market brief and DXY correlation are all running "
+                      "whether the Mac is on or off.\n\n"
+                      "If you do not get this message one morning, the cloud alarm is down.")
+          except Exception as e:
+              body = f"Cloud alarm is alive but the gold feed failed: {e}"
+          req = urllib.request.Request(NTFY, data=body.encode(),
+              headers={"Title": "Gold alarm daily check", "Tags": "chart"}, method="POST")
+          urllib.request.urlopen(req, timeout=10)
+          print("heartbeat sent")
+          PY

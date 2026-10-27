@@ -13,7 +13,7 @@ Pure price action. No API key. Pushes to ntfy topic gold-alarm.
 import json, os, sys, datetime as dt
 import pandas as pd, yfinance as yf, urllib.request
 
-TOPIC = "https://ntfy.sh/gold-alarm"
+TOPIC = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
 STATE = "session_state.json"
 
 # UTC hour windows.  Asian wraps midnight.

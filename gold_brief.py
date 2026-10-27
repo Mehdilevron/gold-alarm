@@ -6,7 +6,7 @@ No API key needed. Pushes to ntfy topic gold-alarm."""
 import urllib.request
 import pandas as pd, yfinance as yf
 
-TOPIC = "https://ntfy.sh/gold-alarm"
+TOPIC = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
 SWING = 3
 
 
