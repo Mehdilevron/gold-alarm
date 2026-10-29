@@ -1,0 +1,29 @@
+name: Gold AMD All Sessions
+on:
+  schedule:
+    - cron: '*/5 * * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  amd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet yfinance pandas
+      - name: Watch all session ranges and push any setup
+        run: python3 gold_amd_cloud.py
+      - name: Persist state
+        run: |
+          if [ -n "$(git status --porcelain amd_state.json)" ]; then
+            git config user.name  "gold-alarm"
+            git config user.email "gold-alarm@users.noreply.github.com"
+            git add amd_state.json
+            git commit -m "amd state"
+            git pull --rebase -q || true
+            git push -q
+          fi
