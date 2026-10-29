@@ -1,0 +1,18 @@
+name: Gold Daily Report
+on:
+  schedule:
+    # 03:00 UTC = 07:00 Dubai, every weekday morning
+    - cron: '0 3 * * 1-5'
+  workflow_dispatch:
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet yfinance pandas
+      - name: Build the daily report and push to phone
+        run: python3 gold_daily_report.py
