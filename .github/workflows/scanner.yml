@@ -3,85 +3,27 @@ on:
   schedule:
     - cron: '7,22,37,52 * * * *'   # every 15 min, just after each M15 close
   workflow_dispatch:
-
+permissions:
+  contents: write
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install data library
-        run: pip install --quiet yfinance
-
-      - name: Scan structure and push A-grade setups
+        run: pip install --quiet yfinance pandas
+      - name: Scan the whole market and push any setup
+        run: python3 market_scan.py setups
+      - name: Persist state
         run: |
-          python3 - <<'PY'
-          import urllib.request
-          import yfinance as yf
-
-          NTFY = "https://ntfy.sh/claude-mt5-alerts-7f3k2"
-          SYMBOLS = {"GC=F":"XAUUSD","SI=F":"XAGUSD","BTC-USD":"BTCUSD",
-                     "EURUSD=X":"EURUSD","GBPUSD=X":"GBPUSD","USDJPY=X":"USDJPY",
-                     "AUDUSD=X":"AUDUSD","USDCAD=X":"USDCAD",
-                     "NZDUSD=X":"NZDUSD","USDCHF=X":"USDCHF",
-                     "EURJPY=X":"EURJPY","GBPJPY=X":"GBPJPY",
-                     "EURGBP=X":"EURGBP","AUDJPY=X":"AUDJPY",
-                     "CADJPY=X":"CADJPY","CHFJPY=X":"CHFJPY",
-                     "EURAUD=X":"EURAUD","GBPAUD=X":"GBPAUD",
-                     "EURCAD=X":"EURCAD","AUDNZD=X":"AUDNZD",
-                     "DX-Y.NYB":"DXY"}
-          SWING = 12
-
-          def notify(title, msg, prio="high"):
-              req = urllib.request.Request(NTFY, data=msg.encode(),
-                    headers={"Title": title, "Priority": prio, "Tags": "chart"}, method="POST")
-              try: urllib.request.urlopen(req, timeout=15)
-              except Exception as e: print("notify", e)
-
-          def bars(s, iv, pd):
-              return yf.Ticker(s).history(period=pd, interval=iv).dropna()
-
-          def atr(df, n=14):
-              h, l, c = df["High"], df["Low"], df["Close"].shift(1)
-              tr = (h-l).combine((h-c).abs(), max).combine((l-c).abs(), max)
-              return float(tr.rolling(n).mean().iloc[-1])
-
-          def bias(s):
-              h = bars(s, "1h", "10d")
-              if len(h) < 20: return "flat"
-              cl = h["Close"].tail(20); m = float(cl.mean()); last = float(cl.iloc[-1])
-              return "bullish" if last > m*1.001 else "bearish" if last < m*0.999 else "flat"
-
-          for sym, pair in SYMBOLS.items():
-              try:
-                  m = bars(sym, "15m", "5d")
-                  if len(m) < SWING + 4: continue
-                  m = m.iloc[:-1]                       # closed candles only
-                  cur, prev = m.iloc[-1], m.iloc[-2]
-                  win = m.iloc[-(SWING+2):-2]
-                  lo, hi = float(win["Low"].min()), float(win["High"].max())
-                  b = bias(sym)
-                  a = atr(m)
-                  c = float(cur["Close"])
-                  dp = 1 if c > 50 else 5
-                  f = f"{{:.{dp}f}}"
-
-                  # sweep on the PREVIOUS candle, structure shift on THIS one
-                  swept_low  = float(prev["Low"])  < lo and float(prev["Close"]) > lo
-                  swept_high = float(prev["High"]) > hi and float(prev["Close"]) < hi
-
-                  if swept_low and c > float(prev["High"]) and b == "bullish":
-                      stop = float(prev["Low"]) - a*0.15; r = c - stop
-                      notify(f"{pair} LONG — SWEEP+MSS [A]",
-                             f"Entry {f.format(c)} | Stop {f.format(stop)} | "
-                             f"TP1 {f.format(c+r)} | TP2 {f.format(c+2*r)}\n"
-                             f"Swept {f.format(lo)} then shifted up. H1 bullish. Cloud scan.")
-                  elif swept_high and c < float(prev["Low"]) and b == "bearish":
-                      stop = float(prev["High"]) + a*0.15; r = stop - c
-                      notify(f"{pair} SHORT — SWEEP+MSS [A]",
-                             f"Entry {f.format(c)} | Stop {f.format(stop)} | "
-                             f"TP1 {f.format(c-r)} | TP2 {f.format(c-2*r)}\n"
-                             f"Swept {f.format(hi)} then shifted down. H1 bearish. Cloud scan.")
-                  else:
-                      print(pair, "no setup", b)
-              except Exception as e:
-                  print("error", pair, e)
-          PY
+          if [ -n "$(git status --porcelain market_state.json)" ]; then
+            git config user.name  "gold-alarm"
+            git config user.email "gold-alarm@users.noreply.github.com"
+            git add market_state.json
+            git commit -m "market state"
+            git pull --rebase -q || true
+            git push -q
+          fi
