@@ -42,6 +42,14 @@ def fetch(interval, period):
     return d.dropna()
 
 
+def fetch_t(ticker, interval, period):
+    d = yf.download(ticker, period=period, interval=interval,
+                    auto_adjust=False, progress=False)
+    if isinstance(d.columns, pd.MultiIndex):
+        d.columns = d.columns.get_level_values(0)
+    return d.dropna()
+
+
 def structure(d):
     h, l, c = d["High"].values, d["Low"].values, d["Close"].values
     hs, ls = [], []
@@ -135,6 +143,18 @@ def main():
             hi, lo = sess[name]
             L.append(f"  {name}: sweep above {hi:.1f} then a 5m close back under "
                      f"= short; sweep below {lo:.1f} then a 5m close back over = long")
+    L.append("")
+    L.append("MARKET AROUND GOLD")
+    for label, tick in (("DXY", "DX-Y.NYB"), ("US 10Y", "^TNX"),
+                        ("S&P 500", "^GSPC"), ("Oil WTI", "CL=F"),
+                        ("Silver", "SI=F"), ("Bitcoin", "BTC-USD")):
+        try:
+            m = fetch_t(tick, "1d", "7d")
+            c, p = float(m["Close"].iloc[-1]), float(m["Close"].iloc[-2])
+            chg = (c - p) / p * 100
+            L.append(f"  {label}  {c:,.2f}  {chg:+.2f}%")
+        except Exception:
+            L.append(f"  {label}  unavailable")
     L.append("")
     L.append("USD releases today")
     L += news_today()
